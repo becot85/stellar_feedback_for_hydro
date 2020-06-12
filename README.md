@@ -12,6 +12,6 @@ Requirements to use this repository
 * From within the *stellar\_feedback\_for\_hydro* directory ..
 * git clone https://github.com/NuGrid/NuPyCEE.git
 
-#### FSPS
-* ..
-* 
+#### pyFSPS
+* Clone andn build the FSPS Fortran code (may need -fPIC flag even when not using Intel compilers)
+* Clone and build the pyFSPS wrapper
