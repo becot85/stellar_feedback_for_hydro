@@ -73,9 +73,7 @@ def get_energy_rate(inst, i_t, e_per_CC_SN, e_per_SN_Ia):
     
     '''
     
-    Return the energy rate [erg/s] of elements at a given timestep,
-    as well as the rate of total mass ejected and total metal
-    mass ejected.
+    Return the energy rate [erg/s] of enrichment sources at a given timestep.
     
     Arguments
     =========
@@ -97,6 +95,42 @@ def get_energy_rate(inst, i_t, e_per_CC_SN, e_per_SN_Ia):
     # Return the kinetic energy rates
     return e_CC / dt_in_sec,\
            e_Ia / dt_in_sec
+
+
+#############################
+#    Get Energy Rate AGB    #
+#############################
+def get_energy_rate_agb(inst, i_t, v_term):
+    
+    '''
+    
+    Return the energy rate [erg/s] of AGB winds at a given timestep.
+    This assumes a constant wind velocity. The mass loss rate is taken
+    from the SYGMA instance
+    
+    Arguments
+    =========
+    
+        inst: SYGMA instance
+        i_t: Timestep index in the SYGMA instance
+        v_term: Terminal velocity of AGB star winds [km/s]
+    
+    '''
+
+
+    # Convertion units
+    dt_in_sec = inst.history.timesteps[i_t] * 3.154e+7
+    Msun_in_g = 1.989e+33
+    km_in_cm = 100000.0
+
+    # Calculate the mass-loss rate [Msun/s]
+    mdot = sum(inst.mdot_agb[i_t]) / dt_in_sec
+
+    # Calculate the rate kinetic energy (0.5 Mdot v**2) [g cm2 / s3] = [erg/s]
+    e_agb = 0.5 * (mdot*Msun_in_g) * (v_term*km_in_cm)**2
+
+    # Return the rate of kinetic energy
+    return e_agb
 
 
 ############################
@@ -172,7 +206,7 @@ def fill_with_space(thing, spacing=14):
 ###########################
 #    Write Main Header    #
 ###########################
-def write_main_header(enzo_table, prepared_by, params):
+def write_main_header(enzo_table, prepared_by, params, e_per_CC_SN, e_per_SN_Ia, v_agb_terminal):
 
     '''
 
@@ -187,6 +221,9 @@ def write_main_header(enzo_table, prepared_by, params):
         params: List of SYGMA parameters that have been specified
                 Those exclude all parameters that have been left 
                 to their default value
+        e_per_CC_SN: Kinetic energy [erg] for a single CC SN
+        e_per_SN_Ia: Kinetic energy [erg] for a single SN Ia
+        v_agb_terminal: Terminal velocity of AGB star winds [km/s]
 
     '''
 
@@ -198,6 +235,12 @@ def write_main_header(enzo_table, prepared_by, params):
     enzo_table.write("H \n")
     enzo_table.write("H Ejecta are provided in the form of rate [Msun/yr]\n")
     enzo_table.write("H Kinetic energies are provided in the form of rate [erg/s]\n")
+    enzo_table.write("H \n")
+
+    # Write kinetic energy inputs
+    enzo_table.write("H Kinetic energy per CC SN: " + str(e_per_CC_SN) + " erg\n")
+    enzo_table.write("H Kinetic energy per SN Ia: " + str(e_per_SN_Ia) + " erg\n")
+    enzo_table.write("H AGB wind terminal velocity: " + str(v_agb_terminal) + " km/s\n")
     enzo_table.write("H \n")
 
     # Write the list of parameters
@@ -246,6 +289,7 @@ def write_metallicity_header(enzo_table, inst, elements, spacing=14):
     # Write energies
     enzo_table.write(fill_with_space("Kinetic CC",spacing=spacing))
     enzo_table.write(fill_with_space("Kinetic Ia",spacing=spacing))
+    enzo_table.write(fill_with_space("Kinetic AGB",spacing=spacing))
 
     # Change line to start writing the actual data
     enzo_table.write("\n")
