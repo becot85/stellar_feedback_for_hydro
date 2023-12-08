@@ -1,25 +1,15 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # Simple Stellar Population (SSP) Feedback with SYGMA
-
-# In[2]:
-
-
-import matplotlib.pyplot as plt
 import numpy as np
 from NuPyCEE import sygma
 from NuPyCEE import omega
-import fsps
 import h5py
 
 yield_dir = 'yield_tables/'
 
 
-# ### Set parameters for SYGMA
-
-# In[3]:
-
+### Set parameters for SYGMA
 
 # Parameter dictionary
 params = dict()
@@ -59,51 +49,7 @@ params["special_timesteps"] = 100 # Logarithmic timesteping
 # https://github.com/NuGrid/NuPyCEE/blob/master/DOC/Capabilities/Timesteps_size_management.ipynb
 
 
-# ### Set parameters for FSPS
-# http://dfm.io/python-fsps/current/stellarpop_api/
-
-# In[4]:
-
-
-# There should only ever be one StellarPopulation instance!
-sp = fsps.StellarPopulation(zcontinuous=1, # specify single metallicity
-                            sfh=0)         # compute an SSP; i.e., no SF hist
-                                           # SF is always normalized to 1
-
-
-# In[5]:
-
-
-sp.params['zred'] = 0.0
-
-# IMF - can still be custom
-sp.params['imf_type'] = 1 # Chabrier
-sp.params['imf_lower_limit'] = params['imf_bdys'][0]
-sp.params['imf_upper_limit'] = params['imf_bdys'][1]
-
-# Major feature toggles
-sp.params['add_neb_emission'] = False  # from Cloudy
-sp.params['add_neb_continuum'] = False # off if neb emis is False
-sp.params['nebemlineinspec'] = False   # incl emission fluxes in spectra
-
-sp.params['add_agb_dust_model'] = True  # scaled by agb_dust
-sp.params['add_dust_emission'] = False  # Draine & Li 2007; for CSPs
-sp.params['cloudy_dust'] = False        # incl dust in Cloudy tables
-
-sp.params['add_stellar_remnants'] = True # incl remnants in stellar mass calc
-
-# Add stellar velocity dispersion or wavelength smoothing; default is none
-sp.params['smooth_velocity'] = True # False smooths in wavelength space
-sp.params['sigma_smooth'] = 0.0     # if smooth_velocity, dispersion in km/s
-
-print('Isochrone & Spectral libraries:', sp.libraries,
-      '(can only be changed by recompiling FSPS)')
-
-
-# ### Extract the list of available metallicities
-
-# In[6]:
-
+### Extract the list of available SYGMA metallicities
 
 # Run a dummy chemical evolution calculation to access the table info
 o_dummy = omega.omega(table=params["table"])
@@ -111,52 +57,18 @@ Z_table = o_dummy.Z_table
 nb_Z = len(Z_table)
 
 # Print the metallicities
-print("\nAvailable metallicities (Z, mass fraction)")
+print("\nAvailable SYGMA mass fractions")
 print("  ",Z_table)
 
 
-# ### Run SYGMA for all available metallicities
-
-# In[7]:
-
+### Run SYGMA for all available metallicities
 
 sygma_instances = []
 for Z in Z_table:
     sygma_instances.append(sygma.sygma(iniZ=Z, **params))
 
 
-# ### Run FSPS for all available metallicities
-
-# In[8]:
-
-
-fsps_outputs = []
-Z_sol = 0.01295 # consistent with the grackle CLOUDY tables
-for Z in Z_table:
-    sp.params['logzsol'] = np.log10(Z/Z_sol)
-    
-wave, spec = sp.get_spectrum(peraa=True)
-
-
-# In[9]:
-
-
-wave.shape, spec.shape, sp.log_age.shape
-
-
-# In[10]:
-
-
-plt.plot(sp.log_lbol, np.log10(spec.sum(axis=1)))
-plt.plot(np.linspace(-1,3), np.linspace(-1,3), 'k:')
-plt.xlabel('log(L_bol)')
-plt.ylabel('log(sum(spectra))')
-
-
-# ### Create feedback table
-
-# In[11]:
-
+### Create feedback table
 
 source_indx = {"type2": 0,
                "type1a": 1,
@@ -185,7 +97,7 @@ for i_Z in range(nb_Z):
     met_key[i_Z] = model.iniZ
     hist = model.history
 
-    # SYGMA histories use a mix of lists & numpy arrays
+    # SYGMA histories collects NumPy arrays into a list
     ism_elem_yield_sn2 = [hist.ism_elem_yield[i] - 
                           (hist.ism_elem_yield_agb[i] +
                            hist.ism_elem_yield_1a[i]  +
@@ -193,14 +105,6 @@ for i_Z in range(nb_Z):
                           for i in range(len(hist.ism_elem_yield))]
     
     ism_elem_yield_sn2[0][0] = 0 # this is erroneously set to 1 for some reason
-
-    # Each set of ISM yields is time-integrated
-    # Use NumPy to differentiate in order to keep data the same shape
-    # (i.e., # ages by # elements, which is 81)
-    # inst_yield_sn2     = np.gradient(ism_elem_yield_sn2, hist.age, axis=0)
-    # inst_yield_sn1a    = np.gradient(hist.ism_elem_yield_1a, hist.age, axis=0)
-    # inst_yield_agb     = np.gradient(hist.ism_elem_yield_agb, hist.age, axis=0)
-    # inst_yield_massive = np.gradient(hist.ism_elem_yield_massive, hist.age, axis=0)
 
     # Each set of ISM yields is time-integrated
     # Manually differentiate so that we have nb_dt entries
@@ -245,13 +149,8 @@ assert (mass_table >= 0).all()
 assert (metl_table >= 0).all()
 assert (evnt_table >= 0).all()
 
-# Convert rates to per second?
 
-
-# ### Write tables to HDF5
-
-# In[16]:
-
+### Write tables to HDF5
 
 with h5py.File("sygma_feedback_table.h5", "w") as f:
 
@@ -276,7 +175,7 @@ with h5py.File("sygma_feedback_table.h5", "w") as f:
     metl_dset = sygma_grp.create_dataset("ejecta_metal_frac", data=metl_table)
     evnt_dset = sygma_grp.create_dataset("sne_event_rate", data=evnt_table)
 
+    # Future:
     # also create group for fsps models 
     # and write model params to attr of that group
     
-
