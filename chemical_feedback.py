@@ -70,6 +70,7 @@ for Z in Z_table:
 
 ### Create feedback table
 
+# These are the indexes expected by enzo
 source_indx = {"type2": 0,
                "type1a": 1,
                "agb": 2,
@@ -88,7 +89,7 @@ met_key = np.zeros(nb_Z)
 age_key = ages[0]
 
 mass_table = np.zeros((nb_Z, nb_dt, nb_src))
-metl_table = np.zeros_like(mass_table)
+metf_table = np.zeros_like(mass_table)
 evnt_table = np.zeros((nb_Z, nb_dt, 2)) # just supernovae
 
 for i_Z in range(nb_Z):
@@ -129,24 +130,24 @@ for i_Z in range(nb_Z):
 
     # Collect metal mass injected by each source
     # (i.e. sum over all metal elements)
-    metl_table[i_Z, :, source_indx["type2"]]   = inst_yield_sn2[:, 2:].sum(axis=1) / hist.timesteps
-    metl_table[i_Z, :, source_indx["type1a"]]  = inst_yield_sn1a[:, 2:].sum(axis=1) / hist.timesteps
-    metl_table[i_Z, :, source_indx["agb"]]     = inst_yield_agb[:, 2:].sum(axis=1) / hist.timesteps
-    metl_table[i_Z, :, source_indx["massive"]] = inst_yield_massive[:, 2:].sum(axis=1) / hist.timesteps
+    metf_table[i_Z, :, source_indx["type2"]]   = inst_yield_sn2[:, 2:].sum(axis=1) / hist.timesteps
+    metf_table[i_Z, :, source_indx["type1a"]]  = inst_yield_sn1a[:, 2:].sum(axis=1) / hist.timesteps
+    metf_table[i_Z, :, source_indx["agb"]]     = inst_yield_agb[:, 2:].sum(axis=1) / hist.timesteps
+    metf_table[i_Z, :, source_indx["massive"]] = inst_yield_massive[:, 2:].sum(axis=1) / hist.timesteps
 
     # Number of SNe per year
     evnt_table[i_Z, :, source_indx["type2"]]  = model.sn2_numbers / hist.timesteps
     evnt_table[i_Z, :, source_indx["type1a"]] = model.sn1a_numbers / hist.timesteps
 
 # Convert metal mass to metal fraction
-metl_table /= mass_table 
+metf_table /= mass_table 
 
 # Set all nan to zero (because there was no total mass in those cells)
-np.nan_to_num(metl_table, copy=False) # in-place
+np.nan_to_num(metf_table, copy=False) # in-place
 
 # Perform final checks & unit conversions
 assert (mass_table >= 0).all()
-assert (metl_table >= 0).all()
+assert (metf_table >= 0).all()
 assert (evnt_table >= 0).all()
 
 
@@ -155,7 +156,7 @@ assert (evnt_table >= 0).all()
 with h5py.File("sygma_feedback_table.h5", "w") as f:
 
     # Group for indexers
-    index_grp = f.create_group("indexers")
+    index_grp = f.create_group("indexer")
 
     # Write source key as attributes
     for key, item in source_indx.items():
@@ -172,7 +173,7 @@ with h5py.File("sygma_feedback_table.h5", "w") as f:
         sygma_grp.attrs[key] = item
 
     mass_dset = sygma_grp.create_dataset("ejecta_mass", data=mass_table)
-    metl_dset = sygma_grp.create_dataset("ejecta_metal_frac", data=metl_table)
+    metf_dset = sygma_grp.create_dataset("ejecta_metal_frac", data=metf_table)
     evnt_dset = sygma_grp.create_dataset("sne_event_rate", data=evnt_table)
 
     # Future:
