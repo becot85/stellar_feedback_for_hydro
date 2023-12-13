@@ -153,7 +153,7 @@ assert (evnt_table >= 0).all()
 
 ### Write tables to HDF5
 
-with h5py.File("sygma_feedback_table.h5", "w") as f:
+with h5py.File("output_tables/sygma_feedback_table.h5", "w") as f:
 
     # Group for indexers
     index_grp = f.create_group("indexer")
