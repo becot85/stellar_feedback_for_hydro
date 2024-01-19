@@ -53,7 +53,7 @@ params["special_timesteps"] = 100 # Logarithmic timesteping
 
 # Run a dummy chemical evolution calculation to access the table info
 o_dummy = omega.omega(table=params["table"])
-Z_table = o_dummy.Z_table
+Z_table = o_dummy.Z_table[::-1] # default order is high to low
 nb_Z = len(Z_table)
 
 # Print the metallicities
