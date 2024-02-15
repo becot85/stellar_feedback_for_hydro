@@ -86,7 +86,7 @@ assert np.all(ages.shape[1] == params["special_timesteps"]+1)
 nb_dt = params["special_timesteps"]
 
 met_key = np.zeros(nb_Z)
-age_key = ages[0]
+age_key = ages[0, :-1]
 
 mass_table = np.zeros((nb_Z, nb_dt, nb_src))
 metf_table = np.zeros_like(mass_table)
@@ -129,23 +129,20 @@ for i_Z in range(nb_Z):
     mass_table[i_Z, :, source_indx["massive"]] = inst_yield_massive.sum(axis=1) / hist.timesteps
 
     # Collect metal mass injected by each source
-    # (i.e. sum over all metal elements)
-    metf_table[i_Z, :, source_indx["type2"]]   = inst_yield_sn2[:, 2:].sum(axis=1) / hist.timesteps
-    metf_table[i_Z, :, source_indx["type1a"]]  = inst_yield_sn1a[:, 2:].sum(axis=1) / hist.timesteps
-    metf_table[i_Z, :, source_indx["agb"]]     = inst_yield_agb[:, 2:].sum(axis=1) / hist.timesteps
-    metf_table[i_Z, :, source_indx["massive"]] = inst_yield_massive[:, 2:].sum(axis=1) / hist.timesteps
+    # (i.e. sum over all metal elements; ignore 2 isotopes each of H & He)
+    metf_table[i_Z, :, source_indx["type2"]]   = inst_yield_sn2[:, 4:].sum(axis=1) / hist.timesteps
+    metf_table[i_Z, :, source_indx["type1a"]]  = inst_yield_sn1a[:, 4:].sum(axis=1) / hist.timesteps
+    metf_table[i_Z, :, source_indx["agb"]]     = inst_yield_agb[:, 4:].sum(axis=1) / hist.timesteps
+    metf_table[i_Z, :, source_indx["massive"]] = inst_yield_massive[:, 4:].sum(axis=1) / hist.timesteps
 
     # Number of SNe per year
     evnt_table[i_Z, :, source_indx["type2"]]  = model.sn2_numbers / hist.timesteps
     evnt_table[i_Z, :, source_indx["type1a"]] = model.sn1a_numbers / hist.timesteps
 
-# Convert metal mass to metal fraction
-metf_table /= mass_table 
-
 # Set all nan to zero (because there was no total mass in those cells)
 np.nan_to_num(metf_table, copy=False) # in-place
 
-# Perform final checks & unit conversions
+# Perform final checks
 assert (mass_table >= 0).all()
 assert (metf_table >= 0).all()
 assert (evnt_table >= 0).all()
@@ -173,7 +170,7 @@ with h5py.File("output_tables/sygma_feedback_table.h5", "w") as f:
         sygma_grp.attrs[key] = item
 
     mass_dset = sygma_grp.create_dataset("ejecta_mass", data=mass_table)
-    metf_dset = sygma_grp.create_dataset("ejecta_metal_frac", data=metf_table)
+    metf_dset = sygma_grp.create_dataset("ejecta_metal_mass", data=metf_table)
     evnt_dset = sygma_grp.create_dataset("sne_event_rate", data=evnt_table)
 
     # Future:
