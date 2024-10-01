@@ -1,0 +1,3 @@
+[submodule "NuPyCEE"]
+	path = NuPyCEE
+	url = git@github.com:NuGrid/NuPyCEE.git
