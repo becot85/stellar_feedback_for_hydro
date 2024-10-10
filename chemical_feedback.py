@@ -74,7 +74,7 @@ for Z in Z_table:
 source_indx = {"type2": 0,
                "type1a": 1,
                "agb": 2,
-               "massive": 3}
+               "nsm": 3}
 
 nb_src = len(source_indx)
 
@@ -98,42 +98,33 @@ for i_Z in range(nb_Z):
     met_key[i_Z] = model.iniZ
     hist = model.history
 
-    # SYGMA histories collects NumPy arrays into a list
-    ism_elem_yield_sn2 = [hist.ism_elem_yield[i] - 
-                          (hist.ism_elem_yield_agb[i] +
-                           hist.ism_elem_yield_1a[i]  +
-                           hist.ism_elem_yield_massive[i])
-                          for i in range(len(hist.ism_elem_yield))]
-    
-    ism_elem_yield_sn2[0][0] = 0 # this is erroneously set to 1 for some reason
-
     # Each set of ISM yields is time-integrated
     # Manually differentiate so that we have nb_dt entries
     # (the first axis dimension matches the number of ages, which is nb_dt+1)
     # Division by the timestep (in yr) will happen after summing
-    inst_yield_sn2     = np.diff(ism_elem_yield_sn2, axis=0)
-    inst_yield_sn1a    = np.diff(hist.ism_elem_yield_1a, axis=0)
-    inst_yield_agb     = np.diff(hist.ism_elem_yield_agb, axis=0)
-    inst_yield_massive = np.diff(hist.ism_elem_yield_massive, axis=0)
+    inst_yield_msv  = np.diff(hist.ism_elem_yield_massive, axis=0)
+    inst_yield_sn1a = np.diff(hist.ism_elem_yield_1a, axis=0)
+    inst_yield_agb  = np.diff(hist.ism_elem_yield_agb, axis=0)
+    inst_yield_nsm  = np.diff(hist.ism_elem_yield_nsm, axis=0)
 
     # The gradient goes negative at some parts near the highest ages so set these to 0
-    inst_yield_sn2     = np.where(inst_yield_sn2 < 0, 0, inst_yield_sn2)
-    inst_yield_sn1a    = np.where(inst_yield_sn1a < 0, 0, inst_yield_sn1a)
-    inst_yield_agb     = np.where(inst_yield_agb < 0, 0, inst_yield_agb)
-    inst_yield_massive = np.where(inst_yield_massive < 0, 0, inst_yield_massive)
+    inst_yield_msv  = np.where(inst_yield_msv < 0, 0, inst_yield_msv)
+    inst_yield_sn1a = np.where(inst_yield_sn1a < 0, 0, inst_yield_sn1a)
+    inst_yield_agb  = np.where(inst_yield_agb < 0, 0, inst_yield_agb)
+    inst_yield_nsm  = np.where(inst_yield_nsm < 0, 0, inst_yield_nsm)
 
     # Collect mass injected by each source (i.e. sum over all elements)
-    mass_table[i_Z, :, source_indx["type2"]]   = inst_yield_sn2.sum(axis=1) / hist.timesteps 
-    mass_table[i_Z, :, source_indx["type1a"]]  = inst_yield_sn1a.sum(axis=1) / hist.timesteps
-    mass_table[i_Z, :, source_indx["agb"]]     = inst_yield_agb.sum(axis=1) / hist.timesteps
-    mass_table[i_Z, :, source_indx["massive"]] = inst_yield_massive.sum(axis=1) / hist.timesteps
+    mass_table[i_Z, :, source_indx["type2"]]  = inst_yield_msv.sum(axis=1) / hist.timesteps 
+    mass_table[i_Z, :, source_indx["type1a"]] = inst_yield_sn1a.sum(axis=1) / hist.timesteps
+    mass_table[i_Z, :, source_indx["agb"]]    = inst_yield_agb.sum(axis=1) / hist.timesteps
+    mass_table[i_Z, :, source_indx["nsm"]]    = inst_yield_nsm.sum(axis=1) / hist.timesteps
 
     # Collect metal mass injected by each source
     # (i.e. sum over all metal elements; ignore 2 isotopes each of H & He)
-    metf_table[i_Z, :, source_indx["type2"]]   = inst_yield_sn2[:, 4:].sum(axis=1) / hist.timesteps
-    metf_table[i_Z, :, source_indx["type1a"]]  = inst_yield_sn1a[:, 4:].sum(axis=1) / hist.timesteps
-    metf_table[i_Z, :, source_indx["agb"]]     = inst_yield_agb[:, 4:].sum(axis=1) / hist.timesteps
-    metf_table[i_Z, :, source_indx["massive"]] = inst_yield_massive[:, 4:].sum(axis=1) / hist.timesteps
+    metf_table[i_Z, :, source_indx["type2"]]  = inst_yield_msv[:, 4:].sum(axis=1) / hist.timesteps
+    metf_table[i_Z, :, source_indx["type1a"]] = inst_yield_sn1a[:, 4:].sum(axis=1) / hist.timesteps
+    metf_table[i_Z, :, source_indx["agb"]]    = inst_yield_agb[:, 4:].sum(axis=1) / hist.timesteps
+    metf_table[i_Z, :, source_indx["nsm"]]    = inst_yield_nsm[:, 4:].sum(axis=1) / hist.timesteps
 
     # Number of SNe per year
     evnt_table[i_Z, :, source_indx["type2"]]  = model.sn2_numbers / hist.timesteps
@@ -159,7 +150,7 @@ with h5py.File("output_tables/sygma_feedback_table.h5", "w") as f:
     for key, item in source_indx.items():
         index_grp.attrs[key+"_index"] = item
 
-    index_grp.create_dataset("initial_metallicity", data=met_key)
+    index_grp.create_dataset("initial_metal_fraction", data=met_key)
     index_grp.create_dataset("population_age", data=age_key)
 
     # Group for SYGMA models
